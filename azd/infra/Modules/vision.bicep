@@ -1,0 +1,183 @@
+param customVision bool
+param location string
+param tenantId string
+param myObjectId string
+
+var unique = uniqueString(resourceGroup().id, subscription().id)
+var roleDefinitionId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
+
+// Custom vision resources (if you want to do a brief demo)
+resource customTraining 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = if (customVision) {
+  name: 'train${unique}'
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
+  kind: 'CustomVision.Training'
+  sku: {
+    name: 'S0'
+  }
+  properties: {
+    publicNetworkAccess: 'Enabled'
+  }
+}
+resource customPrediction 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = if (customVision) {
+  name: 'predict${unique}'
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
+  kind: 'CustomVision.Prediction'
+  sku: {
+    name: 'S0'
+  }
+  properties: {
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// Storage resources
+resource str 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+  name: 'str${unique}'
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }  
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'
+  }
+  properties: {
+    allowBlobPublicAccess: true
+  }
+  resource blobServices 'blobServices@2023-01-01' = {
+    name: 'default'
+    resource classContainer 'containers@2023-01-01' = {
+      name: 'classification'
+      properties: {
+        publicAccess: 'Blob'
+      }
+    }
+    resource detectionContainer 'containers@2023-01-01' = {
+      name: 'detection'
+      properties: {
+        publicAccess: 'Blob'
+      }
+    }
+  }
+}
+
+// Set up Storage Blob Data Contributor permissions
+module roleAssignment 'roleassignment.bicep' = {
+  name: 'roleAssignment'
+  params: {
+    principalId: myObjectId
+    roleDefinitionId: roleDefinitionId
+    resName: str.name
+    storageAccount: true
+    vault: false
+  }
+}
+
+// Azure Machine Learning resources
+resource appInsightsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: 'appinsights${unique}'
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
+}
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: 'appinsights${unique}'
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: appInsightsWorkspace.id
+  }
+}
+resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: 'kv${unique}'
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
+  properties: {
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    accessPolicies: [
+      {
+        objectId: myObjectId
+        permissions: {
+          secrets: ['all']
+        }
+        tenantId: tenantId
+      }
+    ]
+    tenantId: tenantId
+  }
+}
+resource amlWorkspace 'Microsoft.MachineLearningServices/workspaces@2024-01-01-preview' = {
+  name: 'aml${unique}'
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
+  sku: {
+    name: 'Basic'
+    tier: 'Basic'
+  }
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    applicationInsights: appInsights.id
+    keyVault: vault.id
+    storageAccount: str.id
+  }
+}
+
+// Computer vision resource
+resource computerVision 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = {
+  name: 'vision${unique}'
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
+  kind: 'ComputerVision'
+  sku: {
+    name: 'S1'
+  }
+  properties: {
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// Face resource
+resource face 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = {
+  name: 'face${unique}'
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
+  kind: 'Face'
+  sku: {
+    name: 'S0'
+  }
+  properties: {
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// Outputs
+var visionKey = computerVision.listKeys().key1
+var faceKey = face.listKeys().key1
+output visionEndpoint string = computerVision.properties.endpoint
+output visionKey string = visionKey
+output faceEndpoint string = face.properties.endpoint
+output faceKey string = faceKey

@@ -1,0 +1,36 @@
+# Ask a question
+POST {{qnaEndpoint}}language/:query-knowledgebases
+    ?projectName={{qnaProj}}
+    &api-version=2021-10-01
+    &deploymentName={{qndDep}}
+Ocp-Apim-Subscription-Key: {{qnaKey}}
+
+{
+    "question": "Learn about my favourite trainer",
+    "confidenceScoreThreshold": "0.7",
+}
+###
+
+# Test synonyms
+POST {{qnaEndpoint}}language/:query-knowledgebases
+    ?projectName={{qnaProj}}
+    &api-version=2021-10-01
+    &deploymentName={{qndDep}}
+Ocp-Apim-Subscription-Key: {{qnaKey}}
+
+{
+    "question": "Can we be nonenemies?"
+}
+###
+
+# Ask a question with no answer in the knowledgebase
+POST {{qnaEndpoint}}language/:query-knowledgebases
+    ?projectName={{qnaProj}}
+    &api-version=2021-10-01
+    &deploymentName={{qndDep}}
+Ocp-Apim-Subscription-Key: {{qnaKey}}
+
+{
+    "question": "Kamusta ka?"
+}
+###

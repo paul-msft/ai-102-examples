@@ -1,0 +1,23 @@
+# This CI workflow will run any time any of the files code within the 01-services directory get updated
+name: 01 Services CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths: 
+      - "01-services/**"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "01-services/**"
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: CI
+    strategy:
+      matrix:
+        proj: [ 01-services/01-GettingStarted/GettingStarted.csproj, 01-services/02-Security/Security.csproj, 01-services/03-Container/Container.csproj ]
+    uses: ./.github/workflows/00-reusable-ci.yml
+    with:
+      project: ${{ matrix.proj }}
